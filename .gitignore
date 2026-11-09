@@ -27,3 +27,9 @@ logs
 .superpowers/
 supabase/.temp/
 supabase/.branches/
+.playwright-mcp/
+docs/superpowers/
+# Persoonlijke hooks van AI-tools (absolute paden per machine)
+.cursor/
+.gemini/
+.codex/

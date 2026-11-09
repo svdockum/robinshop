@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { createScanGate } from '~/utils/scanGate'
+import { createScanGate, pickPrimaryCode } from '~/utils/scanGate'
 
 describe('createScanGate (geen dubbele scans door een trillende hand)', () => {
   test('zelfde code binnen 2,5 s wordt genegeerd', () => {
@@ -25,5 +25,33 @@ describe('createScanGate (geen dubbele scans door een trillende hand)', () => {
     const gate = createScanGate(2500)
     expect(gate('https://x/p/PREI', 0)).toBe(true)
     expect(gate('https://x/p/MELK', 100)).toBe(true)
+  })
+})
+
+describe('meerdere labels in beeld', () => {
+  test('hand zwaait terug over een buurlabel (A→B→A binnen 2,5 s): A telt maar één keer', () => {
+    const gate = createScanGate(2500)
+    expect(gate('A', 0)).toBe(true)
+    expect(gate('B', 300)).toBe(true)
+    expect(gate('A', 600)).toBe(false)
+  })
+
+  test('na 2,5 s zonder A mag A weer', () => {
+    const gate = createScanGate(2500)
+    expect(gate('A', 0)).toBe(true)
+    expect(gate('B', 300)).toBe(true)
+    expect(gate('A', 3000)).toBe(true)
+  })
+
+  test('twee codes in beeld: de grootste (dichtstbijzijnde) wint', () => {
+    const codes = [
+      { rawValue: 'VER', boundingBox: { width: 40, height: 40 } },
+      { rawValue: 'DICHTBIJ', boundingBox: { width: 160, height: 150 } },
+    ]
+    expect(pickPrimaryCode(codes)).toBe('DICHTBIJ')
+  })
+
+  test('geen codes: niets', () => {
+    expect(pickPrimaryCode([])).toBeNull()
   })
 })

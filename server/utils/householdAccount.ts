@@ -17,13 +17,19 @@ export function placeholderEmail(householdId: string): string {
  * Zorgt dat het huishouden precies één Supabase-account heeft met het juiste e-mailadres.
  * Er wordt geen e-mail verstuurd; inloggen gaat via de pas of een zelf aangevraagde inloglink.
  */
-export async function ensureHouseholdUser(event: H3Event, hh: HouseholdAccountRow): Promise<{ userId: string, email: string }> {
+export async function ensureHouseholdUser(
+  event: H3Event,
+  hh: HouseholdAccountRow,
+  options: { syncEmail?: boolean } = {},
+): Promise<{ userId: string, email: string }> {
   const admin = serverSupabaseServiceRole(event)
   const email = hh.email?.trim().toLowerCase() || placeholderEmail(hh.id)
+  const syncEmail = options.syncEmail ?? true
 
   if (hh.auth_user_id) {
     const { data } = await admin.auth.admin.getUserById(hh.auth_user_id)
     if (data?.user) {
+      if (!syncEmail) return { userId: hh.auth_user_id, email: data.user.email ?? email }
       if (data.user.email !== email) {
         const { error } = await admin.auth.admin.updateUserById(hh.auth_user_id, { email, email_confirm: true })
         if (error) {

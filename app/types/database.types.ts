@@ -247,6 +247,9 @@ isOneToOne: false
 "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"is_admin_or_server":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
 "month_allowance":
 { Args: { "budget": number,"m": number }; Returns: number
                            },
@@ -267,6 +270,9 @@ isOneToOne: false
                            },
 "remove_scan":
 { Args: { "p_scan_id": string }; Returns: Json
+                           },
+"revoke_household_sessions":
+{ Args: { "p_household": string }; Returns: number
                            },
 "start_visit":
 { Args: { "p_household": string,"p_scan_point": string,"p_user"?: string }; Returns: Json

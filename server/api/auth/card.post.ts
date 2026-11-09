@@ -21,7 +21,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Deze pas kennen we niet' })
   }
 
-  const { email } = await ensureHouseholdUser(event, household)
+  // Bij inloggen niets aan het e-mailadres veranderen; dat doet alleen het beheer.
+  const { email } = await ensureHouseholdUser(event, household, { syncEmail: false })
   const { data, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
   const tokenHash = data?.properties?.hashed_token
   if (error || !tokenHash) {

@@ -1,7 +1,7 @@
 -- Eetpuntenlogica: budget, maandtegoed, doorschuiven, voorschot en registreren van scans.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(55);
+select plan(57);
 
 -- ---------------------------------------------------------------------------
 -- Punten per leeftijd en maandtegoed
@@ -104,6 +104,8 @@ insert into advances (household_id, month, amount) values ('00000000-0000-0000-0
 select is((household_balance('00000000-0000-0000-0000-0000000000b6', '2026-12-15 12:00+01')->>'available')::int, 33800, 'december met voorschot: 31.200 + 2.600');
 select is((household_balance('00000000-0000-0000-0000-0000000000b6', '2027-01-05 12:00+01')->>'available')::int, 0, 'januari na december-voorschot: 2.600 - 2.600 = 0');
 select is((household_balance('00000000-0000-0000-0000-0000000000b6', '2027-01-05 12:00+01')->>'can_advance')::boolean, false, 'januari na december-voorschot: geen nieuw voorschot');
+select is((household_balance('00000000-0000-0000-0000-0000000000b6', '2027-02-05 12:00+01')->>'available')::int, 2600, 'februari na december-voorschot: januari blijft verbruikt (2.600, niet 5.200)');
+select is((household_balance('00000000-0000-0000-0000-0000000000b6', '2027-06-05 12:00+02')->>'available')::int, 13000, 'juni na december-voorschot: 15.600 − 2.600 = 13.000');
 
 -- ---------------------------------------------------------------------------
 -- Registreren als lid (authenticated)
