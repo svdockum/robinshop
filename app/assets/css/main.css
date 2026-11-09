@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Lektorat";
+  src: url("/fonts/Lektorat-NarrowBold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Work Sans";
+  src: url("/fonts/WorkSans-Variable.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Robin-huisstijl (merkboek 25.02): groen + beige primair, koraal als accent. */
+@theme {
+  --color-groen: #115656;
+  --color-groen-licht: #2b6f6f;
+  --color-beige: #faf5df;
+  --color-zand: #f3e8c8;
+  --color-zand-donker: #e8d9ae;
+  --color-koraal: #fd644e;
+  --color-koraal-donker: #e04c37;
+
+  --font-display: "Lektorat", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-beige text-groen font-sans antialiased;
+    min-height: 100dvh;
+  }
+  h1, h2, h3 {
+    @apply font-display;
+    line-height: 1.02;
+    letter-spacing: 0.005em;
+  }
+  button, [role="button"] {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-koraal);
+    outline-offset: 2px;
+  }
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-lg font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+}
+
+@utility btn-primary {
+  @apply btn bg-groen text-beige hover:bg-groen-licht;
+}
+
+@utility btn-outline {
+  @apply btn border-2 border-groen text-groen hover:bg-zand;
+}
+
+@utility btn-accent {
+  @apply btn bg-koraal text-white hover:bg-koraal-donker;
+}
+
+@utility btn-ghost {
+  @apply btn text-groen hover:bg-zand;
+}
+
+@utility card {
+  @apply rounded-3xl bg-zand p-5;
+}
+
+@utility card-groen {
+  @apply rounded-3xl bg-groen p-5 text-beige;
+}
+
+@utility input {
+  @apply w-full rounded-2xl border-2 border-zand-donker bg-white/70 px-4 py-3 text-lg text-groen placeholder:text-groen/40 focus:border-groen focus:outline-none;
+}
+
+@utility label {
+  @apply mb-1 block text-sm font-semibold;
+}
+
+@utility pill-min {
+  @apply inline-flex items-center rounded-full bg-koraal px-4 py-1.5 font-display text-2xl text-white;
+}
