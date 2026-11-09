@@ -4,13 +4,13 @@ import type { LabelProduct } from '~/utils/pdf/labels'
 const props = defineProps<{ products: LabelProduct[] }>()
 const emit = defineEmits<{ close: [] }>()
 
-const size = ref<'klein' | 'groot'>('klein')
+const size = ref<'krat' | 'groot'>('krat')
 const style = ref<'robin' | 'hoog'>('robin')
 const busy = ref(false)
 const base = useSiteBase()
 const { show } = useToast()
 const isLocal = computed(() => /localhost|127\.0\.0\.1/.test(base.value))
-const perPage = computed(() => (size.value === 'klein' ? 10 : 4))
+const perPage = computed(() => (size.value === 'krat' ? 12 : 4))
 const pages = computed(() => Math.ceil(props.products.length / perPage.value))
 
 async function print() {
@@ -37,9 +37,9 @@ async function print() {
     <fieldset class="mt-4">
       <legend class="label">Formaat</legend>
       <div class="grid grid-cols-2 gap-2">
-        <label class="card flex cursor-pointer items-start gap-2 !p-3" :class="size === 'klein' ? 'ring-2 ring-groen' : ''">
-          <input v-model="size" type="radio" value="klein" class="mt-1 accent-groen">
-          <span><strong>Klein</strong><br><span class="text-sm">95 × 45 mm, 10 per A4 — voor kratten</span></span>
+        <label class="card flex cursor-pointer items-start gap-2 !p-3" :class="size === 'krat' ? 'ring-2 ring-groen' : ''">
+          <input v-model="size" type="radio" value="krat" class="mt-1 accent-groen">
+          <span><strong>Krat</strong><br><span class="text-sm">90 × 40 mm voor de inkeping, inhoud in de zichtbare 65 mm. 12 per A4</span></span>
         </label>
         <label class="card flex cursor-pointer items-start gap-2 !p-3" :class="size === 'groot' ? 'ring-2 ring-groen' : ''">
           <input v-model="size" type="radio" value="groot" class="mt-1 accent-groen">
