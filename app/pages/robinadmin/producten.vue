@@ -190,9 +190,13 @@ async function copy(text: string) {
           </p>
         </div>
         <span class="shrink-0 rounded-full bg-koraal px-3 py-1 font-display text-2xl text-white" :title="`${p.points} eetpunten`">{{ p.points }}</span>
-        <div class="flex shrink-0 flex-col gap-1">
-          <button type="button" class="text-sm font-semibold underline" @click="qrFor = p">QR</button>
-          <button type="button" class="text-sm font-semibold underline" @click="editing = p">Bewerk</button>
+        <div class="flex shrink-0 flex-col gap-1.5">
+          <button type="button" class="btn-outline !justify-start !gap-1.5 !px-3 !py-1.5 !text-sm" :aria-label="`QR-code van ${p.name}`" @click="qrFor = p">
+            <RIcon name="qr" class="h-4 w-4" /> QR
+          </button>
+          <button type="button" class="btn-outline !justify-start !gap-1.5 !px-3 !py-1.5 !text-sm" :aria-label="`${p.name} bewerken`" @click="editing = p">
+            <RIcon name="edit" class="h-4 w-4" /> Bewerk
+          </button>
         </div>
       </li>
     </ul>

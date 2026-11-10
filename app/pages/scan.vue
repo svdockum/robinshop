@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatTime, pointsLabel } from '~/utils/format'
+import { pointsLabel } from '~/utils/format'
 
 useHead({ title: 'Scannen · Robin' })
 
@@ -24,9 +24,22 @@ const hint = computed(() => visit.value
   ? 'Richt je camera op de QR-code bij het product'
   : 'Scan de QR-code bij de ingang')
 
+const basketLabel = computed(() => {
+  const n = visit.value?.items.length ?? 0
+  return `Je mandje: ${n === 1 ? '1 product' : `${n} producten`}, ${pointsLabel(visit.value?.points)}`
+})
+
 function onDetected(raw: string) {
   if (fullResult.value) return
   handleRaw(raw)
+}
+
+/** Het product bij een scan, voor het plaatje in de terugleg-vraag. */
+function productOf(scanId: string) {
+  const item = visit.value?.items.find(i => i.scan_id === scanId)
+  if (item) return { name: item.name, imageUrl: item.image_url }
+  if (lastScan.value?.scanId === scanId) return { name: lastScan.value.product.name, imageUrl: lastScan.value.product.image_url }
+  return undefined
 }
 
 async function onUndo(scanId: string) {
@@ -35,19 +48,21 @@ async function onUndo(scanId: string) {
     body: 'De punten komen weer terug op je saldo.',
     confirmLabel: 'Ja, ik heb het teruggelegd',
     cancelLabel: 'Nee, ik neem het mee',
+    thumb: productOf(scanId),
+    icons: ['hand-back'],
+    confirmIcons: ['hand-back', 'check'],
+    cancelIcons: ['basket'],
   })
-  if (ok && await removeScan(scanId)) useToast().show('Teruggelegd. De punten staan weer op je saldo.', 'ok')
+  if (ok && await removeScan(scanId)) useToast().show('Teruggelegd. De punten staan weer op je saldo.', 'ok', 3500, ['hand-back', 'check'])
 }
 </script>
 
 <template>
   <div class="space-y-4 pt-2">
-    <div class="flex items-center gap-3">
-      <svg viewBox="0 0 24 24" class="h-8 w-8 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><path d="M7 12h10" />
-      </svg>
-      <h1 class="text-4xl">{{ visit ? 'Scan een product' : 'Inchecken' }}</h1>
-    </div>
+    <h1 class="sr-only">{{ visit ? 'Scan een product' : 'Inchecken' }}</h1>
+
+    <!-- Waar ben ik in mijn bezoek: ingang → producten → kassa -->
+    <VisitSteps v-if="!fullResult" :current="visit ? 2 : 1" />
 
     <Transition name="sheet" mode="out-in">
       <ScanResultSheet
@@ -72,43 +87,44 @@ async function onUndo(scanId: string) {
       />
     </Transition>
 
-    <QrScanner v-show="!fullResult" :hint="hint" @detected="onDetected" />
+    <QrScanner v-show="!fullResult" :hint="hint" target="gate" @detected="onDetected">
+      <!-- In de winkel richt je op het kratlabel: QR-code met het aantal punten op koraal -->
+      <template v-if="visit" #target>
+        <span class="inline-flex items-center gap-1 rounded-lg bg-koraal py-1 pr-2.5 pl-1.5 text-beige">
+          <RIcon name="qr" class="h-7 w-7" /><span class="font-display text-2xl leading-none">2</span>
+        </span>
+      </template>
+    </QrScanner>
 
     <!-- Mandje van dit bezoek -->
     <section v-if="visit && !fullResult" class="card">
-      <button type="button" class="flex w-full items-center justify-between text-left" :aria-expanded="basketOpen" @click="basketOpen = !basketOpen">
-        <span class="flex items-center gap-3">
-          <span class="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-groen text-beige">
-            <RIcon name="basket" class="h-7 w-7" />
-            <span :key="visit.items.length" class="anim-pop absolute -top-1.5 -right-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-koraal px-1 text-sm font-bold text-white">{{ visit.items.length }}</span>
-          </span>
-          <span>
-            <span class="block text-xl font-semibold">Je mandje</span>
-            <span class="text-base">{{ visit.items.length === 1 ? '1 product' : `${visit.items.length} producten` }} · {{ pointsLabel(visit.points) }}</span>
-          </span>
+      <button type="button" class="flex w-full items-center gap-4 text-left" :aria-expanded="basketOpen" :aria-label="basketLabel" @click="basketOpen = !basketOpen">
+        <span class="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-groen text-beige">
+          <RIcon name="basket" class="h-7 w-7" />
+          <span :key="visit.items.length" class="anim-pop absolute -top-1.5 -right-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-koraal px-1 text-sm font-bold text-white">{{ visit.items.length }}</span>
         </span>
-        <RIcon :name="basketOpen ? 'minus' : 'plus'" class="h-7 w-7" />
+        <span v-if="visit.points" class="pill-min">−{{ visit.points }}</span>
+        <RIcon name="chevron-down" class="ml-auto h-7 w-7 transition-transform" :class="{ 'rotate-180': basketOpen }" />
       </button>
       <TransitionGroup v-if="basketOpen" tag="ul" name="list" class="mt-4 divide-y divide-zand-donker">
-        <li v-if="!visit.items.length" key="leeg" class="py-3 text-base">Nog niets gescand.</li>
+        <li v-if="!visit.items.length" key="leeg" class="flex justify-center py-4 text-groen/40">
+          <RIcon name="basket" class="h-10 w-10" label="Nog niets gescand" />
+        </li>
         <li v-for="item in visit.items" :key="item.scan_id" class="flex items-center gap-3 py-3">
           <ProductThumb :name="item.name" :image-url="item.image_url" />
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-lg font-semibold">{{ item.name }}</p>
-            <p class="text-sm">{{ item.portion }} · {{ formatTime(item.created_at) }}</p>
-          </div>
-          <span class="font-display text-2xl">{{ item.points }}</span>
-          <button type="button" class="flex items-center gap-1 rounded-full px-2 py-2 text-sm font-semibold hover:bg-zand-donker" @click="onUndo(item.scan_id)">
-            <RIcon name="hand-back" class="h-5 w-5" /><span class="sr-only sm:not-sr-only">Leg terug</span>
+          <p class="min-w-0 flex-1 truncate text-lg font-semibold">{{ item.name }}</p>
+          <span class="pill-min !px-3 !py-1 !text-xl">{{ item.points }}<span class="sr-only"> {{ item.points === 1 ? 'punt' : 'punten' }}</span></span>
+          <button
+            type="button"
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-zand-donker"
+            :aria-label="`Leg ${item.name} terug`"
+            title="Leg terug"
+            @click="onUndo(item.scan_id)"
+          >
+            <RIcon name="hand-back" class="h-7 w-7" />
           </button>
         </li>
       </TransitionGroup>
-      <p class="mt-3 flex items-center gap-2 text-sm"><RIcon name="gate" class="h-5 w-5 shrink-0" /> Klaar met boodschappen? Scan de QR-code bij de kassa.</p>
-    </section>
-
-    <section v-else-if="!fullResult" class="card flex items-center gap-4">
-      <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-groen text-beige"><RIcon name="gate" class="h-8 w-8" /></span>
-      <p class="text-lg">Scan bij de ingang de QR-code op het scherm.</p>
     </section>
   </div>
 </template>

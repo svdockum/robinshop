@@ -17,7 +17,7 @@ export interface ScannedProduct {
 export type ScanResult =
   | { kind: 'scanned', product: ScannedProduct, balance: Balance, scanId: string, advanceUsed: boolean }
   | { kind: 'insufficient', product: ScannedProduct, balance: Balance, canAdvance: boolean, advanceAmount: number }
-  | { kind: 'error', title: string, message: string, icon: IconName, action?: 'checkin' }
+  | { kind: 'error', title: string, message: string, icon: IconName, action?: 'checkin', next?: IconName[] }
   | { kind: 'checked-in', householdName: string, already: boolean }
   | { kind: 'checked-out', householdName: string, items: number, points: number, balance?: Balance }
   | { kind: 'logged-in', householdName: string }
@@ -29,20 +29,21 @@ export interface ScanState {
   seq?: number
 }
 
-const ERRORS: Record<string, { title: string, message: string, icon: IconName, action?: 'checkin' }> = {
-  NO_VISIT: { title: 'Eerst naar de ingang', message: 'Scan eerst de QR-code bij de ingang.', icon: 'gate', action: 'checkin' },
-  MAX: { title: 'Genoeg van dit product', message: 'Je hebt al het maximum van dit product voor dit bezoek.', icon: 'stack' },
-  UNKNOWN_PRODUCT: { title: 'Onbekend product', message: 'Dit product kennen we niet. Vraag het even aan een medewerker.', icon: 'question' },
-  EXPIRED_CODE: { title: 'Code verlopen', message: 'Scan de code op het scherm opnieuw.', icon: 'clock' },
+/** `icon` zegt wat er mis is, `next` laat in beeld zien wat je nu kunt doen. */
+const ERRORS: Record<string, { title: string, message: string, icon: IconName, action?: 'checkin', next?: IconName[] }> = {
+  NO_VISIT: { title: 'Eerst naar de ingang', message: 'Scan eerst de QR-code bij de ingang.', icon: 'gate', action: 'checkin', next: ['phone-scan', 'gate'] },
+  MAX: { title: 'Genoeg van dit product', message: 'Je hebt al het maximum van dit product voor dit bezoek.', icon: 'stack', next: ['hand-back'] },
+  UNKNOWN_PRODUCT: { title: 'Onbekend product', message: 'Dit product kennen we niet. Vraag het even aan een medewerker.', icon: 'question', next: ['staff'] },
+  EXPIRED_CODE: { title: 'Code verlopen', message: 'Scan de code op het scherm opnieuw.', icon: 'clock', next: ['refresh', 'phone-scan'] },
   UNKNOWN_POINT: { title: 'Onbekende code', message: 'Deze code hoort niet bij een ingang of kassa van Robin.', icon: 'qr' },
   NOT_MEMBER: { title: 'Geen huishouden', message: 'Log in met je ledenpas.', icon: 'card' },
   UNKNOWN_CODE: { title: 'Onbekende code', message: 'Deze code hoort niet bij Robin.', icon: 'qr' },
-  NETWORK: { title: 'Geen verbinding', message: 'Controleer je internet en probeer het opnieuw.', icon: 'wifi-off' },
+  NETWORK: { title: 'Geen verbinding', message: 'Controleer je internet en probeer het opnieuw.', icon: 'wifi-off', next: ['refresh'] },
 }
 
 function errorResult(code: string, extra?: Partial<Record<'message', string>>): ScanResult {
   const e = ERRORS[code] ?? ERRORS.NETWORK!
-  return { kind: 'error', title: e.title, message: extra?.message ?? e.message, icon: e.icon, action: e.action }
+  return { kind: 'error', title: e.title, message: extra?.message ?? e.message, icon: e.icon, action: e.action, next: e.next }
 }
 
 /** Gedeelde scanlogica voor de scanpagina en de deep links (/p, /in, /uit, /pas). */
@@ -123,7 +124,7 @@ export function useScanFlow() {
       show({ kind: 'logged-in', householdName: name })
     }
     catch {
-      show({ kind: 'error', title: 'Pas niet herkend', message: 'Vraag een medewerker om hulp.', icon: 'card' })
+      show({ kind: 'error', title: 'Pas niet herkend', message: 'Vraag een medewerker om hulp.', icon: 'card', next: ['staff'] })
     }
   }
 
@@ -169,7 +170,7 @@ export function useScanFlow() {
     const { data, error } = await supabase.rpc('remove_scan', { p_scan_id: scanId })
     const r = data as Record<string, any> | null
     if (error || !r?.ok) {
-      useToast().show(r?.error === 'VISIT_CLOSED' ? 'Dit bezoek is al afgerond.' : 'Terugleggen lukt nu niet.', 'error')
+      useToast().show(r?.error === 'VISIT_CLOSED' ? 'Dit bezoek is al afgerond.' : 'Terugleggen lukt nu niet.', 'error', 3500, ['hand-back', 'cross'])
       return false
     }
     setBalance(r.balance)

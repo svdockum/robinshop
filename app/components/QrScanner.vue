@@ -2,29 +2,70 @@
 import { QrcodeStream } from 'vue-qrcode-reader'
 import type { DetectedBarcode } from 'vue-qrcode-reader'
 import { pickPrimaryCode } from '~/utils/scanGate'
+import { describeCameraProblem, retriesOnReturn } from '~/utils/cameraProblem'
+import type { CameraPermission } from '~/utils/cameraProblem'
+import type { IconName } from '~/components/RIcon.vue'
 
-withDefaults(defineProps<{ paused?: boolean, hint?: string }>(), {
+/**
+ * Onder de camera staat in beeld wat je moet doen: telefoon → `target` (waar je op richt).
+ * `hint` is dezelfde uitleg in tekst; die verschijnt na een tik op het beeld.
+ */
+withDefaults(defineProps<{ paused?: boolean, hint?: string, target?: IconName }>(), {
   paused: false,
   hint: 'Richt je camera op de QR-code',
+  target: 'qr',
 })
 const emit = defineEmits<{ detected: [raw: string] }>()
 
 const ready = ref(false)
-const error = ref<string | null>(null)
+/** Naam van de laatste camerafout (bijv. NotAllowedError); null als de camera het doet. */
+const errorName = ref<string | null>(null)
+const permission = ref<CameraPermission>('unknown')
+/** Melding en knop volgen ook een toestemming die pas later bekend of veranderd is. */
+const problem = computed(() => (errorName.value ? describeCameraProblem(errorName.value, permission.value) : null))
 const torchSupported = ref(false)
 const torch = ref(false)
 const attempt = ref(0)
 const manualOpen = ref(false)
 const manualCode = ref('')
+const manualInput = ref<HTMLInputElement | null>(null)
 
-const CAMERA_ERRORS: Record<string, string> = {
-  NotAllowedError: 'Geef de website toestemming om je camera te gebruiken. Daarna kun je scannen.',
-  NotFoundError: 'We vinden geen camera op dit apparaat.',
-  NotReadableError: 'De camera is al in gebruik door een andere app. Sluit die app en probeer het opnieuw.',
-  OverconstrainedError: 'De achtercamera kan niet worden gestart.',
-  InsecureContextError: 'De camera werkt alleen via een beveiligde verbinding (https).',
-  StreamApiNotSupportedError: 'Deze browser kan de camera niet gebruiken. Probeer Safari of Chrome.',
+let permissionStatus: PermissionStatus | null = null
+
+/** Toestemming veranderd in de browser (slotje, instellingen): daar meteen op reageren. */
+function onPermissionChange() {
+  if (!permissionStatus) return
+  permission.value = permissionStatus.state
+  if (permission.value === 'granted') {
+    if (errorName.value) retry()
+  }
+  else if (ready.value) {
+    // Toestemming ingetrokken terwijl de camera aan stond: het beeld staat dan stil.
+    ready.value = false
+    errorName.value = 'NotAllowedError'
+  }
 }
+
+/** Terug in de app na de instellingen of na het sluiten van een andere app. */
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible' && problem.value && retriesOnReturn(problem.value.kind)) retry()
+}
+
+onMounted(async () => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  try {
+    permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName })
+    permission.value = permissionStatus.state
+    permissionStatus.addEventListener('change', onPermissionChange)
+  }
+  catch {
+    // Browser kent de camera-toestemming niet als vraag; dan blijft het 'unknown'.
+  }
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  permissionStatus?.removeEventListener('change', onPermissionChange)
+})
 
 const flash = ref(false)
 let flashTimer: ReturnType<typeof setTimeout> | undefined
@@ -42,18 +83,29 @@ onBeforeUnmount(() => clearTimeout(flashTimer))
 
 function onCameraOn(capabilities: Partial<MediaTrackCapabilities>) {
   ready.value = true
-  error.value = null
+  errorName.value = null
   torchSupported.value = 'torch' in capabilities && !!(capabilities as { torch?: boolean }).torch
 }
 
 function onError(err: Error) {
   ready.value = false
-  error.value = CAMERA_ERRORS[err.name] ?? 'De camera starten lukt niet. Probeer het opnieuw.'
+  console.warn('[QrScanner] camera start mislukt:', err.name, err.message)
+  // Stand opnieuw lezen: na weigeren in de browserprompt is die net veranderd.
+  if (permissionStatus) permission.value = permissionStatus.state
+  errorName.value = err.name
 }
 
 function retry() {
-  error.value = null
+  errorName.value = null
   attempt.value++
+}
+
+async function toggleManual() {
+  manualOpen.value = !manualOpen.value
+  if (manualOpen.value) {
+    await nextTick()
+    manualInput.value?.focus()
+  }
 }
 
 function submitManual() {
@@ -82,7 +134,7 @@ function submitManual() {
       </ClientOnly>
 
       <!-- Kader: ademt rustig tijdens het zoeken, knijpt samen bij een scan -->
-      <div v-if="!error" class="frame pointer-events-none absolute inset-x-12 inset-y-6" :class="{ 'frame-hit': flash }" aria-hidden="true">
+      <div v-if="!problem" class="frame pointer-events-none absolute inset-x-12 inset-y-6" :class="{ 'frame-hit': flash }" aria-hidden="true">
         <span class="corner top-0 left-0 rounded-tl-2xl border-t-[5px] border-l-[5px]" />
         <span class="corner top-0 right-0 rounded-tr-2xl border-t-[5px] border-r-[5px]" />
         <span class="corner bottom-0 left-0 rounded-bl-2xl border-b-[5px] border-l-[5px]" />
@@ -90,46 +142,70 @@ function submitManual() {
         <span v-if="ready && !paused" class="sweep absolute inset-x-3 top-0 h-[3px] rounded-full bg-beige/80" />
       </div>
 
-      <div v-if="!ready && !error" class="absolute inset-0 flex items-center justify-center text-beige">
-        <p class="text-lg">Camera wordt gestart…</p>
+      <div v-if="!ready && !problem" class="absolute inset-0 flex items-center justify-center text-beige" role="status">
+        <RIcon name="camera" class="anim-breathe h-14 w-14" />
+        <span class="sr-only">Camera wordt gestart…</span>
       </div>
 
-      <div v-if="error" class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center text-beige">
-        <p class="text-lg">{{ error }}</p>
-        <button type="button" class="btn bg-beige text-groen" @click="retry">Opnieuw proberen</button>
+      <!-- Camera lukt niet: beeld, de knop om het opnieuw te proberen en de uitleg achter de ⓘ -->
+      <div v-if="problem" class="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-groen p-8 text-beige" role="alert">
+        <RIcon name="camera-off" class="h-16 w-16 text-koraal" />
+        <p class="sr-only">{{ problem.message }}</p>
+        <div class="flex items-center gap-3">
+          <button v-if="problem.button" type="button" class="btn bg-beige text-groen" :aria-label="problem.button" @click="retry">
+            <RIcon :name="problem.kind === 'ask' ? 'camera' : 'refresh'" class="h-7 w-7" />
+          </button>
+          <InfoTip :text="problem.message" class="!opacity-100" />
+        </div>
       </div>
 
       <button
         v-if="torchSupported"
         type="button"
-        class="absolute right-4 bottom-4 rounded-full bg-beige/90 px-4 py-2 text-sm font-semibold text-groen"
+        class="absolute right-4 bottom-4 flex h-12 w-12 items-center justify-center rounded-full transition-colors"
+        :class="torch ? 'bg-koraal text-white' : 'bg-beige/90 text-groen'"
         :aria-pressed="torch"
+        aria-label="Lamp"
         @click="torch = !torch"
       >
-        {{ torch ? 'Lamp uit' : 'Lamp aan' }}
+        <RIcon name="torch" class="h-7 w-7" />
       </button>
     </div>
 
-    <p class="mt-3 text-center text-lg">{{ hint }}</p>
-
-    <div class="mt-2 text-center">
-      <button v-if="!manualOpen" type="button" class="text-base font-medium underline underline-offset-4" @click="manualOpen = true">
-        Lukt scannen niet? Typ de code
+    <div class="mt-3 flex items-center justify-center gap-3">
+      <!-- Wat moet ik doen? Telefoon → doel. Tik voor dezelfde uitleg in tekst. -->
+      <InfoTip :text="hint" class="min-h-14 gap-3 rounded-2xl bg-zand px-4 py-2">
+        <RIcon name="phone-scan" class="h-9 w-9" />
+        <RIcon name="arrow-right" class="anim-breathe h-6 w-6 text-koraal" />
+        <slot name="target"><RIcon :name="target" class="h-9 w-9" /></slot>
+        <RIcon name="info" class="ml-1 h-5 w-5 opacity-60" />
+      </InfoTip>
+      <button
+        type="button"
+        class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-colors"
+        :class="manualOpen ? 'bg-groen text-beige' : 'bg-zand text-groen hover:bg-zand-donker'"
+        :aria-expanded="manualOpen"
+        aria-label="Lukt scannen niet? Typ de code"
+        @click="toggleManual"
+      >
+        <RIcon name="keyboard" class="h-8 w-8" />
       </button>
-      <form v-else class="mt-2 flex gap-2" @submit.prevent="submitManual">
-        <label class="sr-only" for="manual-code">Code</label>
-        <input
-          id="manual-code"
-          v-model="manualCode"
-          class="input"
-          placeholder="Bijv. PREI"
-          autocomplete="off"
-          autocapitalize="characters"
-          enterkeyhint="go"
-        >
-        <button type="submit" class="btn-primary shrink-0">OK</button>
-      </form>
     </div>
+
+    <form v-if="manualOpen" class="mt-3 flex gap-2" @submit.prevent="submitManual">
+      <label class="sr-only" for="manual-code">Typ de code die bij het product staat</label>
+      <input
+        id="manual-code"
+        ref="manualInput"
+        v-model="manualCode"
+        class="input"
+        placeholder="PREI"
+        autocomplete="off"
+        autocapitalize="characters"
+        enterkeyhint="go"
+      >
+      <button type="submit" class="btn-primary shrink-0" aria-label="Code gebruiken"><RIcon name="check" class="h-7 w-7" /></button>
+    </form>
   </div>
 </template>
 

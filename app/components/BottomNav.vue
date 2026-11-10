@@ -33,13 +33,13 @@ const activeIndex = computed(() => items.findIndex(i => isActive(i.to)))
       <li v-for="item in items" :key="item.to" class="relative">
         <NuxtLink
           :to="item.to"
-          class="flex flex-col items-center gap-1 px-2 pt-3 pb-2.5 text-xs font-semibold transition-colors"
+          class="flex items-center justify-center px-2 py-4 transition-colors"
           :class="isActive(item.to) ? 'text-groen' : 'text-groen/80'"
           :aria-current="isActive(item.to) ? 'page' : undefined"
         >
           <svg
             viewBox="0 0 24 24"
-            class="icon h-7 w-7"
+            class="icon h-8 w-8"
             :class="{ 'icon-active': isActive(item.to) }"
             fill="none"
             stroke="currentColor"
@@ -52,7 +52,9 @@ const activeIndex = computed(() => items.findIndex(i => isActive(i.to)))
               <path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h5v-6h4v6h5V9.5" />
             </template>
             <template v-else-if="item.icon === 'scan'">
-              <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><path d="M7 12h10" />
+              <path d="M3 7.5V5a2 2 0 0 1 2-2h2.5M16.5 3H19a2 2 0 0 1 2 2v2.5M21 16.5V19a2 2 0 0 1-2 2h-2.5M7.5 21H5a2 2 0 0 1-2-2v-2.5" />
+              <rect x="8" y="8" width="2.5" height="2.5" rx=".4" /><rect x="13.5" y="8" width="2.5" height="2.5" rx=".4" /><rect x="8" y="13.5" width="2.5" height="2.5" rx=".4" />
+              <path d="M15 15h.01" />
             </template>
             <template v-else-if="item.icon === 'saldo'">
               <path d="M4 7.5V18a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-3" /><path d="M20 12v-3a1 1 0 0 0-1-1H6a2 2 0 0 1 0-4h11v4" /><path d="M16 12h5v4h-5a2 2 0 0 1 0-4Z" />
@@ -61,7 +63,8 @@ const activeIndex = computed(() => items.findIndex(i => isActive(i.to)))
               <circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
             </template>
           </svg>
-          <span>{{ item.label }}</span>
+          <!-- Alleen beeld; de naam blijft voor schermlezers -->
+          <span class="sr-only">{{ item.label }}</span>
         </NuxtLink>
       </li>
     </ul>

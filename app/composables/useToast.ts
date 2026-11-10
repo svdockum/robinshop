@@ -1,5 +1,7 @@
+import type { IconName } from '~/components/RIcon.vue'
+
 export type ToastKind = 'ok' | 'error' | 'info'
-export interface Toast { id: number, message: string, kind: ToastKind }
+export interface Toast { id: number, message: string, kind: ToastKind, icons?: IconName[] }
 
 let nextId = 1
 
@@ -7,9 +9,10 @@ let nextId = 1
 export function useToast() {
   const toasts = useState<Toast[]>('toasts', () => [])
 
-  function show(message: string, kind: ToastKind = 'info', durationMs = 3500) {
+  /** Met `icons` toont de melding alleen beeld; de tekst blijft voor schermlezers. */
+  function show(message: string, kind: ToastKind = 'info', durationMs = 3500, icons?: IconName[]) {
     const id = nextId++
-    toasts.value = [...toasts.value, { id, message, kind }]
+    toasts.value = [...toasts.value, { id, message, kind, icons }]
     if (import.meta.client) {
       setTimeout(() => dismiss(id), durationMs)
     }

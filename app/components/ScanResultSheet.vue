@@ -53,18 +53,23 @@ const missing = computed(() => props.result.kind === 'insufficient'
       <RIcon name="wallet" class="h-7 w-7 shrink-0" label="Saldo" />
       <span class="sr-only">Nieuw saldo</span>
       <span class="font-display text-3xl leading-none"><AnimatedNumber :value="result.balance.available" :from="before" :delay="380" /></span>
-      <span class="text-sm">punten</span>
-      <span v-if="result.advanceUsed" class="ml-auto inline-flex items-center gap-1 rounded-full bg-beige/15 px-2 py-1 text-xs font-semibold">
-        <RIcon name="calendar-next" class="h-4 w-4" /> {{ nextMonth }}
-      </span>
+      <span class="sr-only">punten</span>
+      <InfoTip
+        v-if="result.advanceUsed"
+        :text="`Je gebruikt nu punten van ${nextMonth}.`"
+        class="ml-auto h-10 w-10 rounded-full bg-beige/15"
+      >
+        <RIcon name="calendar-next" class="h-6 w-6" />
+      </InfoTip>
     </div>
 
+    <!-- Nog één in het mandje, of terugleggen -->
     <div class="mt-3 grid grid-cols-2 gap-2">
-      <button type="button" class="btn-outline !gap-1.5 !px-3 !py-2.5 !text-base" :disabled="busy" @click="emit('another')">
-        <RIcon name="plus" class="h-5 w-5" /> Nog één
+      <button type="button" class="btn-outline !gap-1 !px-3 !py-2.5" :disabled="busy" aria-label="Nog één" title="Nog één" @click="emit('another')">
+        <RIcon name="plus" class="h-6 w-6" /><RIcon name="basket" class="h-7 w-7" />
       </button>
-      <button type="button" class="btn-outline !gap-1.5 !px-3 !py-2.5 !text-base" :disabled="busy" @click="emit('undo', result.scanId)">
-        <RIcon name="hand-back" class="h-5 w-5" /> Leg terug
+      <button type="button" class="btn-outline !px-3 !py-2.5" :disabled="busy" aria-label="Leg terug" title="Leg terug" @click="emit('undo', result.scanId)">
+        <RIcon name="hand-back" class="h-7 w-7" />
       </button>
     </div>
   </section>
@@ -79,9 +84,12 @@ const missing = computed(() => props.result.kind === 'insufficient'
       </div>
       <div class="min-w-0">
         <p class="font-display text-3xl leading-tight">{{ result.product.name }}</p>
-        <p class="mt-1 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-koraal/15 px-3 py-1 text-sm font-semibold text-koraal-donker">
-          <RIcon name="cross" class="h-4 w-4" /> Te weinig punten
-        </p>
+        <InfoTip
+          :text="`Te weinig punten. ${result.product.name} kost ${pointsLabel(result.product.points)}, je hebt nog ${pointsLabel(Math.max(0, result.balance.available))}.`"
+          class="mt-2 gap-1 rounded-full bg-koraal/15 px-3 py-1.5 text-koraal-donker"
+        >
+          <RIcon name="wallet" class="h-7 w-7" /><RIcon name="cross" class="h-6 w-6" />
+        </InfoTip>
       </div>
     </div>
 
@@ -108,44 +116,61 @@ const missing = computed(() => props.result.kind === 'insufficient'
         <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-groen text-beige">
           <RIcon name="calendar-next" class="h-7 w-7" />
         </span>
-        <div class="min-w-0">
-          <p class="font-display text-2xl capitalize leading-tight">{{ nextMonth }}</p>
-          <PointsDots :count="result.advanceAmount" variant="have" :max="10" :delay="900" />
-        </div>
+        <PointsDots :count="result.advanceAmount" variant="have" :max="10" :delay="900" class="min-w-0" />
+        <InfoTip
+          class="ml-auto"
+          :text="`Gebruik nu alvast punten van ${nextMonth}. Die maand krijg je ze dan niet nog een keer.`"
+        />
       </div>
-      <p class="mt-2 text-sm">Gebruik nu alvast punten van {{ nextMonth }}. Die maand krijg je ze dan niet nog een keer.</p>
-      <button type="button" class="btn-accent mt-3 w-full !gap-2" :disabled="busy" @click="emit('advance')">
-        <RIcon name="calendar-next" class="h-6 w-6" />
-        +{{ formatPoints(result.advanceAmount) }} van {{ nextMonth }}
+      <!-- Punten van volgende maand → naar je saldo van nu -->
+      <button
+        type="button"
+        class="btn-accent mt-3 w-full !gap-2"
+        :disabled="busy"
+        :aria-label="`Gebruik ${pointsLabel(result.advanceAmount)} van ${nextMonth}`"
+        @click="emit('advance')"
+      >
+        <RIcon name="calendar-next" class="h-7 w-7" />
+        <span class="font-display text-3xl leading-none">+{{ formatPoints(result.advanceAmount) }}</span>
+        <RIcon name="arrow-right" class="h-6 w-6" />
+        <RIcon name="wallet" class="h-7 w-7" />
       </button>
     </div>
 
+    <!-- Geen voorschot mogelijk: terugleggen, volgende maand zijn er weer punten -->
     <div v-else class="mt-5 flex items-center gap-3 rounded-2xl bg-beige p-4">
       <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-koraal text-white">
         <RIcon name="hand-back" class="h-7 w-7" />
       </span>
-      <p class="text-base">Leg het product terug. Volgende maand heb je weer punten.</p>
+      <span class="flex items-center gap-1.5" aria-hidden="true">
+        <RIcon name="calendar-next" class="h-8 w-8" />
+        <RIcon name="arrow-right" class="h-5 w-5 text-koraal" />
+        <RIcon name="wallet" class="h-8 w-8" />
+      </span>
+      <InfoTip class="ml-auto" text="Leg het product terug. Volgende maand heb je weer punten." />
     </div>
 
-    <button type="button" class="btn-outline mt-3 w-full !gap-2" @click="emit('close')">
-      <RIcon name="phone-scan" class="h-5 w-5" /> Verder scannen
+    <button type="button" class="btn-outline mt-3 w-full" aria-label="Verder scannen" @click="emit('close')">
+      <RIcon name="scan" class="h-7 w-7" />
     </button>
   </section>
 
   <!-- Ingecheckt -->
   <section v-else-if="result.kind === 'checked-in'" class="rounded-3xl bg-groen p-6 text-beige" aria-live="assertive">
-    <span class="anim-pop flex h-16 w-16 items-center justify-center rounded-full bg-beige text-groen">
-      <RIcon name="gate" class="h-9 w-9" />
-    </span>
-    <h2 class="anim-rise mt-4 text-4xl" style="animation-delay: 80ms">{{ result.already ? 'Je bent binnen' : `Welkom, ${result.householdName}!` }}</h2>
-    <ol class="mt-5 grid grid-cols-3 gap-2 text-center text-sm" aria-label="Zo werkt het">
-      <li v-for="(step, i) in [{ icon: 'qr', label: 'Scan product' }, { icon: 'basket', label: 'Neem mee' }, { icon: 'gate', label: 'Scan bij kassa' }] as const" :key="step.label" class="anim-rise rounded-2xl bg-beige/10 p-3" :style="{ animationDelay: `${200 + i * 90}ms` }">
-        <RIcon :name="step.icon" class="mx-auto h-8 w-8" />
-        <span class="mt-1 block">{{ step.label }}</span>
-      </li>
-    </ol>
-    <button type="button" class="btn mt-5 w-full bg-beige text-groen" @click="emit('close')">
-      <RIcon name="phone-scan" class="h-6 w-6" /> Begin met scannen
+    <div class="flex items-center gap-4">
+      <span class="anim-pop relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-beige text-groen">
+        <RIcon name="gate" class="h-9 w-9" />
+        <span class="absolute -right-1 -bottom-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-groen bg-koraal text-white" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path class="anim-draw" style="--len: 22" d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+        </span>
+      </span>
+      <h2 class="anim-rise min-w-0 text-4xl" style="animation-delay: 80ms">
+        <span class="sr-only">{{ result.already ? 'Je bent binnen. ' : 'Welkom, ' }}</span>{{ result.householdName }}
+      </h2>
+    </div>
+    <VisitSteps :current="2" inverse class="anim-rise mt-5" style="animation-delay: 200ms" />
+    <button type="button" class="btn mt-5 w-full bg-beige text-groen" aria-label="Begin met scannen" @click="emit('close')">
+      <RIcon name="scan" class="h-8 w-8" /><RIcon name="arrow-right" class="h-6 w-6" />
     </button>
   </section>
 
@@ -172,9 +197,9 @@ const missing = computed(() => props.result.kind === 'insufficient'
     <div v-if="result.balance" class="anim-rise mt-2 flex items-center gap-3 rounded-2xl bg-beige px-4 py-3 text-groen" style="animation-delay: 1100ms">
       <RIcon name="wallet" class="h-7 w-7" label="Saldo" />
       <span class="font-display text-3xl tabular">{{ formatPoints(result.balance.available) }}</span>
-      <span class="text-sm">punten over</span>
+      <span class="sr-only">punten over</span>
     </div>
-    <NuxtLink to="/" class="btn mt-5 w-full bg-beige text-groen">Naar home</NuxtLink>
+    <NuxtLink to="/" class="btn mt-5 w-full bg-beige text-groen" aria-label="Naar home"><RIcon name="home" class="h-8 w-8" /></NuxtLink>
   </section>
 
   <!-- Ingelogd met pas -->
@@ -183,28 +208,33 @@ const missing = computed(() => props.result.kind === 'insufficient'
       <RIcon name="card" class="h-9 w-9" />
     </span>
     <h2 class="anim-rise mt-4 text-4xl">Hoi {{ result.householdName }}!</h2>
-    <div class="anim-rise mt-4 flex items-center gap-3 text-lg" style="animation-delay: 150ms">
-      <RIcon name="arrow-right" class="h-6 w-6 text-koraal" />
-      <RIcon name="gate" class="h-8 w-8" />
-      <span>Scan de code bij de ingang</span>
-    </div>
-    <button type="button" class="btn-primary mt-5 w-full" @click="emit('close')">Verder</button>
+    <VisitSteps :current="1" class="anim-rise mt-4" style="animation-delay: 150ms" />
+    <button type="button" class="btn-primary mt-5 w-full" aria-label="Verder" @click="emit('close')">
+      <RIcon name="scan" class="h-8 w-8" /><RIcon name="arrow-right" class="h-6 w-6" />
+    </button>
   </section>
 
-  <!-- Melding -->
+  <!-- Melding: wat er mis is als beeld, de tekst achter de ⓘ -->
   <section v-else class="anim-nudge rounded-3xl bg-zand p-6" aria-live="assertive">
     <div class="flex items-center gap-4">
-      <span class="anim-pop flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-koraal text-white">
-        <RIcon :name="result.icon" class="h-9 w-9" />
+      <span class="anim-pop flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-koraal text-white">
+        <RIcon :name="result.icon" class="h-11 w-11" />
       </span>
-      <h2 class="text-4xl">{{ result.title }}</h2>
+      <InfoTip :text="`${result.title}. ${result.message}`" class="ml-auto h-14 w-14 shrink-0 rounded-full bg-beige">
+        <RIcon name="info" class="h-9 w-9" />
+      </InfoTip>
     </div>
-    <div v-if="result.action === 'checkin'" class="anim-rise mt-5 flex items-center justify-center gap-4 rounded-2xl bg-beige p-4" style="animation-delay: 150ms" aria-hidden="true">
-      <RIcon name="phone-scan" class="h-12 w-12" />
-      <RIcon name="arrow-right" class="anim-breathe h-8 w-8 text-koraal" />
-      <RIcon name="gate" class="h-12 w-12" />
+    <h2 class="sr-only">{{ result.title }}</h2>
+    <p class="sr-only">{{ result.message }}</p>
+    <!-- Wat je nu kunt doen -->
+    <div v-if="result.next?.length" class="anim-rise mt-5 flex items-center justify-center gap-4 rounded-2xl bg-beige p-4" style="animation-delay: 150ms" aria-hidden="true">
+      <template v-for="(icon, i) in result.next" :key="icon">
+        <RIcon v-if="i" name="arrow-right" class="anim-breathe h-8 w-8 text-koraal" />
+        <RIcon :name="icon" class="h-12 w-12" />
+      </template>
     </div>
-    <p class="mt-4 text-lg">{{ result.message }}</p>
-    <button type="button" class="btn-primary mt-5 w-full" @click="emit('close')">Oké</button>
+    <button type="button" class="btn-primary mt-5 w-full" aria-label="Oké" @click="emit('close')">
+      <RIcon name="check" class="h-8 w-8" />
+    </button>
   </section>
 </template>

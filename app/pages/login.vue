@@ -85,7 +85,7 @@ async function adminLogin() {
     </div>
 
     <div v-else-if="mode === 'card'" class="mt-6 space-y-4">
-      <QrScanner hint="Houd de QR-code van je ledenpas voor de camera" @detected="onCardScanned" />
+      <QrScanner hint="Houd de QR-code van je ledenpas voor de camera" target="card" @detected="onCardScanned" />
       <p v-if="cardError" class="rounded-2xl bg-koraal px-4 py-3 text-white" role="alert">{{ cardError }}</p>
       <p v-if="busy" class="text-center text-lg">Even inloggen…</p>
       <button type="button" class="btn-ghost w-full" @click="mode = 'start'">Terug</button>
