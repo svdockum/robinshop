@@ -50,8 +50,8 @@ export function errorMessage(e: unknown, fallback = 'Er ging iets mis'): string 
 
 /** Basis-URL voor geprinte QR-codes. */
 export function useSiteBase() {
-  const configured = useRuntimeConfig().public.siteUrl as string
-  return computed(() => (configured || (import.meta.client ? window.location.origin : '')).replace(/\/+$/, ''))
+  const configured = normalizeSiteUrl(useRuntimeConfig().public.siteUrl as string)
+  return computed(() => configured || (import.meta.client ? window.location.origin : ''))
 }
 
 /** PDF openen in een nieuw tabblad (en anders downloaden). */

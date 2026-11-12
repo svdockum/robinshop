@@ -28,6 +28,6 @@ export function requireQrSecret(event: H3Event): string {
 
 /** Basis-URL voor QR-codes op schermen: ingestelde site-URL of de huidige host. */
 export function siteBase(event: H3Event): string {
-  const configured = useRuntimeConfig(event).public.siteUrl
-  return (configured || getRequestURL(event).origin).replace(/\/+$/, '')
+  const configured = normalizeSiteUrl(useRuntimeConfig(event).public.siteUrl as string)
+  return configured || getRequestURL(event).origin.replace(/\/+$/, '')
 }

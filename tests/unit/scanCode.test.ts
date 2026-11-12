@@ -10,6 +10,12 @@ describe('parseScan', () => {
     expect(parseScan('http://localhost:3000/p/MELK')).toEqual({ type: 'product', code: 'MELK' })
   })
 
+  test('URL zonder https:// (oude labels) werkt ook', () => {
+    expect(parseScan('robinshop-nu.vercel.app/p/melk')).toEqual({ type: 'product', code: 'MELK' })
+    expect(parseScan('robinshop-nu.vercel.app/in/ingang?t=1.abc'))
+      .toEqual({ type: 'checkin', slug: 'ingang', token: '1.abc' })
+  })
+
   test('ingangs-URL geeft scanpunt en token', () => {
     expect(parseScan('https://robinshop.vercel.app/in/ingang?t=29839212.abcDEF_-123'))
       .toEqual({ type: 'checkin', slug: 'ingang', token: '29839212.abcDEF_-123' })

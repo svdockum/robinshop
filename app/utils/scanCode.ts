@@ -14,7 +14,9 @@ const CARD_CODE = /^[A-Za-z0-9_-]{8,64}$/
  * De host van een URL maakt niet uit: labels kunnen vanaf een andere omgeving geprint zijn.
  */
 export function parseScan(raw: string): ParsedScan {
-  const text = (raw ?? '').trim()
+  let text = (raw ?? '').trim()
+  // Labels die zijn geprint toen de site-URL nog zonder https:// stond ("robinshop.nl/p/MELK")
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?\//i.test(text)) text = `https://${text}`
   const unknown: ParsedScan = { type: 'unknown', raw: text }
   if (!text) return unknown
 
